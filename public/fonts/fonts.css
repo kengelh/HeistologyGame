@@ -1,0 +1,44 @@
+/* Special Elite */
+@font-face {
+    font-family: 'Special Elite';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/special-elite-v20-latin-regular.woff2') format('woff2');
+}
+
+/* Gloria Hallelujah */
+@font-face {
+    font-family: 'Gloria Hallelujah';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/gloria-hallelujah-v24-latin-regular.woff2') format('woff2');
+}
+
+/* Architects Daughter */
+@font-face {
+    font-family: 'Architects Daughter';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/architects-daughter-v20-latin-regular.woff2') format('woff2');
+}
+
+/* Courier Prime - Regular (400) */
+@font-face {
+    font-family: 'Courier Prime';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/courier-prime-v11-latin-regular.woff2') format('woff2');
+}
+
+/* Courier Prime - Bold (700) */
+@font-face {
+    font-family: 'Courier Prime';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/courier-prime-v11-latin-700.woff2') format('woff2');
+}

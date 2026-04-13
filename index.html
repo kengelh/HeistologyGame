@@ -1,0 +1,479 @@
+<!--
+  @file index.html
+  @description
+  This is the main HTML file and the entry point for the entire web application.
+  It sets up the basic document structure, includes necessary styles and scripts,
+  and provides the root DOM element where the React application will be mounted.
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://*.google-analytics.com https://cdn.tailwindcss.com https://aistudiocdn.com https://gc.zgo.at; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://heistology.com https://*.google-analytics.com https://*.googletagmanager.com https://heistology.goatcounter.com; connect-src 'self' https://*.sentry.io https://*.ingest.de.sentry.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://heistology.goatcounter.com; media-src 'self' https://cdn.pixabay.com;">
+
+  <!-- Primary Meta Tags -->
+  <title>Heistology - The Tactical Heist Planning Game</title>
+  <meta name="title" content="Heistology - The Tactical Heist Planning Game">
+  <meta name="description"
+    content="Master the art of the handoff in Heistology. A tactical heist simulator where you plan every second, coordinate specialists, and execute the perfect crime. Retro aesthetics meet modern strategy.">
+  <meta name="keywords"
+    content="heist game, tactical strategy, planning game, retro game, heist simulator, heistology, indie game">
+  <meta name="author" content="Heistology Inc.">
+  <link rel="canonical" href="https://heistology.com/">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://heistology.com/">
+  <meta property="og:title" content="Heistology - The Tactical Heist Planning Game">
+  <meta property="og:description"
+    content="Plan, coordinate, and execute the perfect heist. Tactical strategy with a retro blueprint aesthetic.">
+  <meta property="og:image" content="https://heistology.com/og-image.png">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://heistology.com/">
+  <meta property="twitter:title" content="Heistology - The Tactical Heist Planning Game">
+  <meta property="twitter:description"
+    content="Plan, coordinate, and execute the perfect heist. Tactical strategy with a retro blueprint aesthetic.">
+  <meta property="twitter:image" content="https://heistology.com/og-image.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/favicon.png">
+
+  <!-- Structured Data (JSON-LD) - Enhanced for Rich Snippets -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoGame",
+      "name": "Heistology",
+      "operatingSystem": "Web Browser",
+      "applicationCategory": "GameApplication",
+      "gamePlatform": "Web Browser",
+      "genre": ["Strategy", "Tactical", "Puzzle", "Simulation"],
+      "description": "A tactical heist simulator where players plan and execute complex robberies using a team of specialists. Choreograph every movement on the timeline and execute the perfect heist in real-time.",
+      "image": "https://heistology.com/og-image.png",
+      "screenshot": "https://heistology.com/og-image.png",
+      "url": "https://heistology.com",
+      "inLanguage": ["en", "de"],
+      "author": {
+        "@type": "Organization",
+        "name": "Heistology Inc.",
+        "url": "https://heistology.com"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Heistology Inc.",
+        "url": "https://heistology.com"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
+      },
+      "keywords": "heist game, tactical planning, strategy game, free online game, browser game, indie game, puzzle game, crime simulator, real-time tactics",
+      "datePublished": "2026-02-12",
+      "dateModified": "2026-02-12"
+    }
+  </script>
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-D5SZSYY9KW"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+
+    // Set default consent to 'denied'
+    gtag('consent', 'default', {
+      'analytics_storage': 'denied',
+      'functionality_storage': 'denied',
+      'security_storage': 'granted', // Always allow security-related cookies
+      'wait_for_update': 500
+    });
+
+    gtag('js', new Date());
+    gtag('config', 'G-D5SZSYY9KW');
+  </script>
+
+  <!-- GoatCounter - Privacy-friendly analytics -->
+  <script data-goatcounter="https://heistology.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+
+  <!-- Tailwind and Theme Config -->
+  <link rel="stylesheet" href="/index.css">
+  <script>
+    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+    }
+  </style>
+  <!-- 
+      Apply a default monospace font to the body to create a retro, "hacker terminal" aesthetic.
+      This gives the game a consistent, stylized look and feel that matches the heist theme.
+    -->
+  <style>
+    body {
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    @keyframes screen-rattle {
+
+      0%,
+      100% {
+        transform: translate(0, 0);
+      }
+
+      10%,
+      30%,
+      50%,
+      70%,
+      90% {
+        transform: translate(-2px, -2px) rotate(-1deg);
+      }
+
+      20%,
+      40%,
+      60%,
+      80% {
+        transform: translate(2px, 2px) rotate(1deg);
+      }
+    }
+
+    .screen-rattle {
+      animation: screen-rattle 0.5s ease-in-out;
+    }
+
+    @keyframes explosion-fade-out {
+      0% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(2.5);
+      }
+    }
+
+    .explosion-text {
+      animation: explosion-fade-out 0.5s ease-out forwards;
+    }
+
+    @keyframes dizzy-stars {
+      0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+      }
+
+      50% {
+        transform: translateY(-10px) rotate(180deg);
+        opacity: 1;
+      }
+
+      100% {
+        transform: translateY(0) rotate(360deg);
+        opacity: 0;
+      }
+    }
+
+    .dizzy-star {
+      animation: dizzy-stars 1.5s linear infinite;
+    }
+
+    @keyframes marquee {
+      0% {
+        transform: translateX(0);
+      }
+
+      100% {
+        transform: translateX(-100%);
+      }
+    }
+
+    @keyframes rotate-left {
+      from {
+        transform: translateX(-100%) skewX(-15deg);
+      }
+
+      to {
+        transform: translateX(100vw) skewX(-15deg);
+      }
+    }
+
+    @keyframes rotate-right {
+      from {
+        transform: translateX(100%) skewX(-15deg);
+      }
+
+      to {
+        transform: translateX(-100vw) skewX(-15deg);
+      }
+    }
+
+    .alarm-light-red {
+      animation: rotate-left 2s infinite linear;
+    }
+
+    .alarm-light-blue {
+      animation: rotate-right 2s infinite linear 1s;
+      /* 1s delay */
+    }
+
+    /* Animation for the blue "ESCAP" letters: pulses with a red glow */
+    @keyframes escap-pulse {
+
+      0%,
+      50%,
+      100% {
+        text-shadow: var(--base-shadow);
+      }
+
+      25% {
+        text-shadow: var(--base-shadow), var(--pulse-shadow);
+      }
+    }
+
+    /* Animation for the red "OLOGY" letters: pulses with a blue glow */
+    @keyframes ology-pulse {
+
+      0%,
+      50%,
+      100% {
+        text-shadow: var(--base-shadow);
+      }
+
+      75% {
+        text-shadow: var(--base-shadow), var(--pulse-shadow);
+      }
+    }
+
+    @keyframes flash-red {
+
+      0%,
+      100% {
+        fill: #ef4444;
+      }
+
+      /* red-500 */
+      50% {
+        fill: #7f1d1d;
+      }
+
+      /* red-900 */
+    }
+
+    @keyframes flash-blue {
+
+      0%,
+      100% {
+        fill: #3b82f6;
+      }
+
+      /* blue-500 */
+      50% {
+        fill: #1e3a8a;
+      }
+
+      /* blue-900 */
+    }
+
+    .police-light-red {
+      animation: flash-red 1s infinite step-end;
+    }
+
+    .police-light-blue {
+      animation: flash-blue 1s infinite step-end;
+      animation-delay: 0.5s;
+    }
+
+    @keyframes tic-toc {
+
+      0%,
+      100% {
+        transform: rotate(-10deg);
+      }
+
+      50% {
+        transform: rotate(10deg);
+      }
+    }
+
+    .tic-toc {
+      animation: tic-toc 1s ease-in-out infinite;
+    }
+
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes blink-caret {
+
+      from,
+      to {
+        border-color: transparent
+      }
+
+      50% {
+        border-color: currentColor;
+      }
+    }
+
+    .typing-cursor::after {
+      content: '_';
+      animation: blink-caret 1.2s step-end infinite;
+      margin-left: 0.25rem;
+    }
+
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-fade-in {
+      animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes scale-in {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .animate-scale-in {
+      animation: scale-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes scan {
+      0% {
+        top: 0%;
+      }
+
+      100% {
+        top: 100%;
+      }
+    }
+
+    .animate-scan {
+      animation: scan 4s linear infinite;
+    }
+  </style>
+
+  <!-- 
+      The importmap is a modern browser feature that allows mapping module specifiers 
+      to specific URLs. This is a key part of the project's architecture, as it avoids 
+      the need for a bundler like Webpack or Rollup. 
+      
+      How it works:
+      - When the browser sees an `import React from 'react';` statement in a JavaScript file,
+        it consults this importmap.
+      - It finds the key "react" and resolves it to the provided CDN URL.
+      - This allows for writing standard ES module import statements that work directly in the browser
+        without any build step.
+
+      Dependencies & Potential Issues:
+      - This creates a hard dependency on the `aistudiocdn.com` service. If this CDN is down, the entire application will fail to load.
+      - Browser compatibility: Import maps are supported in all modern browsers but will not work in older ones (e.g., Internet Explorer).
+      - For a production-grade application, bundling dependencies locally is generally a more robust and performant approach.
+    -->
+  <script type="importmap">
+      {
+        "imports": {
+          "react": "https://aistudiocdn.com/react@^19.1.1",
+          "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+          "react/": "https://aistudiocdn.com/react@^19.1.1/",
+          "@google/genai": "https://aistudiocdn.com/@google/genai@^1.19.0"
+        }
+      }
+    </script>
+</head>
+
+<body
+  class="bg-parchment dark:bg-slate-900 text-slate-800 dark:text-gray-200 transition-colors duration-300 font-typewriter">
+  <!-- The root div where the entire React application will be mounted by `index.tsx`. -->
+  <div id="root">
+    <!-- SEO Fallback: Static content for search engines and users without JavaScript -->
+    <noscript>
+      <div style="max-width: 800px; margin: 0 auto; padding: 40px 20px; font-family: 'Courier New', monospace;">
+        <h1 style="font-size: 2.5em; margin-bottom: 0.5em;">🎯 Heistology - The Tactical Heist Planning Game</h1>
+        <p style="font-size: 1.2em; line-height: 1.6; margin-bottom: 1.5em;">
+          <strong>Plan. Coordinate. Execute.</strong> Heistology is a free-to-play tactical heist simulator where you
+          choreograph every second of the perfect crime. Lead a crew of specialists through high-stakes operations,
+          avoiding guards, cameras, and laser grids.
+        </p>
+
+        <h2 style="margin-top: 1.5em;">🎮 Features</h2>
+        <ul style="line-height: 1.8; font-size: 1.1em;">
+          <li><strong>Real-Time Tactical Planning:</strong> Plot every movement on a timeline before the heist begins.
+          </li>
+          <li><strong>Specialist Crew:</strong> Hire Locksmiths, Wireheads, Safecrackers, and Demolitions Experts.</li>
+          <li><strong>Multiple Missions:</strong> 7+ heists with unique layouts, security systems, and objectives.</li>
+          <li><strong>Retro Aesthetics:</strong> Blueprint-style visuals with a vintage crime thriller feel.</li>
+          <li><strong>Free to Play:</strong> No downloads, no accounts. Play instantly in your browser.</li>
+        </ul>
+
+        <h2 style="margin-top: 1.5em;">🚀 How to Play</h2>
+        <p style="line-height: 1.6;">
+          Heistology requires JavaScript to run. Please enable JavaScript in your browser settings to experience the
+          full game.
+        </p>
+
+        <h2 style="margin-top: 1.5em;">📧 Contact</h2>
+        <p>Questions or feedback? Email us at <a href="mailto:hello@heistology.com">hello@heistology.com</a></p>
+
+        <p style="margin-top: 2em; font-size: 0.9em; color: #666;">
+          © 2026 Heistology Inc. | <a href="https://heistology.com">heistology.com</a>
+        </p>
+      </div>
+    </noscript>
+  </div>
+
+  <!-- 
+      Background music element. The `loop` attribute makes it play continuously.
+      The actual play/pause functionality is controlled from within the React application (`App.tsx`)
+      by getting a reference to this element by its ID and calling its `.play()` and `.pause()` methods.
+    -->
+  <!-- 
+  <audio id="background-music" loop>
+    <source src="https://cdn.pixabay.com/audio/2022/08/04/audio_2bbe649982.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
+  -->
+
+  <!-- 
+      This script tag is the main entry point for the application's JavaScript logic.
+      The `type="module"` attribute is essential. It tells the browser that this file
+      (and any files it imports) use ES6 module syntax (import/export). This is what enables
+      the importmap to function correctly. Without it, `import` statements would throw an error.
+    -->
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>

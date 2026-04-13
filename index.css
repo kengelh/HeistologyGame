@@ -1,0 +1,172 @@
+@import url('/fonts/fonts.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+  @file index.css
+  @description
+  Custom CSS for the "Celluloid Blueprint" theme.
+  This file defines textures, custom animations, and specialized UI components
+  that can't be purely expressed with utility-first Tailwind.
+*/
+
+:root {
+    --color-blueprint-blue: #1e3a8a;
+    --color-parchment-beige: #f5f5dc;
+    --color-evidence-red: #991b1b;
+    --color-ink-blue: #1d4ed8;
+}
+
+/* Background Textures */
+.bg-manila {
+    background-image: url('/assets/manila_folder_texture.png');
+    background-size: cover;
+    background-position: center;
+}
+
+.bg-blueprint {
+    background-image: url('/assets/blueprint_paper_texture.png');
+    background-size: 512px;
+    /* Fixed size for grid consistency */
+    background-repeat: repeat;
+}
+
+.texture-overlay {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    opacity: 0.15;
+    mix-blend-mode: multiply;
+}
+
+.coffee-stain {
+    /* Create a ring-like stain using radial gradient */
+    background: radial-gradient(circle closest-side,
+            transparent 55%,
+            rgba(80, 50, 20, 0.1) 60%,
+            rgba(60, 40, 10, 0.4) 65%,
+            rgba(80, 50, 20, 0.1) 68%,
+            transparent 72%);
+    border-radius: 50%;
+    filter: blur(1px);
+    pointer-events: none !important;
+    mix-blend-mode: multiply;
+}
+
+/* Fonts */
+.font-typewriter {
+    font-family: 'Special Elite', 'Courier Prime', monospace;
+}
+
+.font-handwriting {
+    font-family: 'Gloria Hallelujah', 'Architects Daughter', cursive;
+}
+
+/* Blueprint Line Style */
+.blueprint-line {
+    border-color: rgba(255, 255, 255, 0.4);
+    border-style: dashed;
+}
+
+/* Buttons as Rubber Stamps */
+.btn-stamp {
+    position: relative;
+    display: inline-block;
+    padding: 0.5rem 1.5rem;
+    font-weight: 700;
+    transition-property: transform;
+    transition-duration: 200ms;
+    border: 3px solid currentColor;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transform: rotate(-2deg);
+    box-shadow: 2px 2px 0px currentColor;
+}
+
+.btn-stamp:active {
+    transform: scale(0.95) rotate(-2deg);
+}
+
+.btn-stamp::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.2;
+    pointer-events: none;
+    background-image: radial-gradient(circle, currentColor 10%, transparent 10%);
+    background-size: 4px 4px;
+}
+
+/* Animations */
+@keyframes flicker {
+    0% {
+        opacity: 0.97;
+    }
+
+    5% {
+        opacity: 0.95;
+    }
+
+    10% {
+        opacity: 0.98;
+    }
+
+    15% {
+        opacity: 0.94;
+    }
+
+    20% {
+        opacity: 0.99;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+.animate-flicker {
+    animation: flicker 0.15s infinite;
+}
+
+@keyframes bounce-x {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(5px);
+    }
+}
+
+.animate-bounce-x {
+    animation: bounce-x 1s infinite;
+}
+
+@keyframes pulse-subtle {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.85;
+        transform: scale(1.02);
+    }
+}
+
+.animate-pulse-subtle {
+    animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.blueprint-grid {
+    background-size: 64px 64px;
+    background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+}
