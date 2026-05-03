@@ -182,6 +182,15 @@ const App = () => {
     // NEW: Track if player ever started a heist (for exit-intent survey)
     const [hasStartedHeist, setHasStartedHeist] = React.useState(false);
 
+    // --- Error Handling ---
+    const [lastError, setLastError] = React.useState<Error | null>(null);
+
+    // Simple error recovery function
+    const handleResetApp = () => {
+        localStorage.clear();
+        window.location.reload();
+    };
+
     // NEW: Seen mechanics state for tutorials
     const [seenMechanics, setSeenMechanics] = React.useState<Set<string>>(() => {
         const stored = localStorage.getItem('seenMechanics');
@@ -189,6 +198,17 @@ const App = () => {
     });
     // NEW: Tutorial modal state
     const [tutorialQueue, setTutorialQueue] = React.useState<string[]>([]);
+    
+    // NEW: Isometric perspective state
+    const [isIsometric, setIsIsometric] = React.useState(false);
+
+    const toggleIsometric = React.useCallback(() => {
+        setIsIsometric(prev => {
+            const next = !prev;
+            localStorage.setItem('isIsometric', String(next));
+            return next;
+        });
+    }, []);
 
     // Refs for tracking plan history to enable undo functionality.
     const planHistory = React.useRef<PlanStep[][]>([]);
@@ -1593,7 +1613,13 @@ const App = () => {
 
     // --- Memoized Derived State for Context ---
 
-    const timeForProjection = gameState ? gameState.playerPlannedTimes[gameState.currentPlayer] : 0;
+    const currentPlayer = (gameState && gameState.players && gameState.currentPlayer < gameState.players.length) 
+        ? gameState.currentPlayer 
+        : 0;
+
+    const timeForProjection = gameState?.phase === 'planning'
+        ? (gameState?.playerPlannedTimes?.[currentPlayer] !== undefined ? gameState.playerPlannedTimes?.[currentPlayer] : 0)
+        : (gameState?.currentTime !== undefined ? gameState?.currentTime : 0);
 
     // Memoize projection to avoid expensive recalculation on every render
     // Move this OUT of contextValue so it's a valid top-level hook
@@ -1604,7 +1630,8 @@ const App = () => {
             return getProjectedStateAtTime(gameState.plan, currentScenario, gameState.players, timeForProjection);
         } catch (e) {
             console.error('[projection] Error in getProjectedStateAtTime:', e);
-            return null;
+            // Fallback to a safe empty projection if it crashes
+            return getProjectedStateAtTime([], currentScenario, gameState.players, 0);
         }
     }, [gameState?.plan, currentScenario, gameState?.players, timeForProjection]);
 
@@ -1627,145 +1654,157 @@ const App = () => {
     }, [gameState, currentScenario]);
 
     const contextValue = React.useMemo(() => {
-        if (!gameState || !currentScenario || !projection) return null;
+        if (!gameState || !currentScenario) return null;
 
-        const { projectedMap, projectedPlayers, projectedCameras, projectedCamerasActive, projectedGuards, projectedLaserGrids, projectedPressurePlates, projectedActiveFuses, projectedStunEffect, detectedHiddenPlates, projectedPlayerKeys, projectedPickpocketedGuards } = projection;
+        try {
+            // If projection failed for some reason, we use a basic fallback to avoid a total UI crash
+            const effectiveProjection = projection || getProjectedStateAtTime([], currentScenario, gameState.players, 0);
+            
+            const { projectedMap, projectedPlayers, projectedCameras, projectedCamerasActive, projectedGuards, projectedLaserGrids, projectedPressurePlates, projectedActiveFuses, projectedStunEffect, detectedHiddenPlates, projectedPlayerKeys, projectedPickpocketedGuards } = effectiveProjection;
 
-        const usedItems: Record<string, number> = {};
-        gameState.plan.forEach(step => {
-            const itemInfo = Object.values(CONSUMABLE_ITEMS).find(i => i.action === step.action);
-            if (itemInfo) {
-                usedItems[itemInfo.id] = (usedItems[itemInfo.id] || 0) + 1;
-            }
-        });
-        const availableInventory: Record<string, number> = {};
-        Object.keys(CONSUMABLE_ITEMS).forEach(itemId => {
-            availableInventory[itemId] = (gameState.inventory[itemId] || 0) - (usedItems[itemId] || 0);
-        });
-
-        // Create a projected game state that includes pickpocketed keys
-        const projectedGameState: GameState = {
-            ...gameState,
-            map: projectedMap,
-            players: projectedPlayers,
-            guards: projectedGuards,
-            playerKeys: projectedPlayerKeys,
-            pickpocketedGuards: projectedPickpocketedGuards,
-        };
-
-        const adjacentActions = calculateAdjacentActions(projectedGameState, currentScenario, availableInventory);
-
-        const planningMonitoredTiles: GameState['monitoredTiles'] = {};
-        if (projectedCamerasActive) {
-            projectedCameras.forEach(cam => {
-                if (cam.disabled || cam.looperTimer) return;
-                const time = timeForProjection;
-                // NEW: Sensor Interference - hide vision after duration
-                if (cam.hideInPlanningAfter !== undefined && time > cam.hideInPlanningAfter) return;
-
-                const frameIndex = Math.floor(time / cam.period) % cam.pattern.length;
-                cam.pattern[frameIndex]?.forEach(pos => {
-                    planningMonitoredTiles[`${pos.x}-${pos.y}`] = { status: 'potential', orientation: cam.orientation };
-                });
-            });
-        }
-
-        const projectedGuardVisionTiles = new Set<string>();
-        projectedGuards.forEach(guard => {
-            // NEW: If patrol is hidden, vision only works at 5-second 'pings' in planning
-            if (guard.hidePatrolInPlanning && timeForProjection % 5 !== 0) return;
-            calculateGuardVision(guard, projectedMap).forEach(tile => projectedGuardVisionTiles.add(tile));
-        });
-
-        const actionTargetMap = new Map<ActionType, { x: number, y: number }[]>();
-        for (const action of adjacentActions) {
-            if (action.target) {
-                if (!actionTargetMap.has(action.action)) {
-                    actionTargetMap.set(action.action, []);
+            const usedItems: Record<string, number> = {};
+            gameState.plan.forEach(step => {
+                const itemInfo = Object.values(CONSUMABLE_ITEMS).find(i => i.action === step.action);
+                if (itemInfo) {
+                    usedItems[itemInfo.id] = (usedItems[itemInfo.id] || 0) + 1;
                 }
-                actionTargetMap.get(action.action)!.push(action.target);
+            });
+            const availableInventory: Record<string, number> = {};
+            Object.keys(CONSUMABLE_ITEMS).forEach(itemId => {
+                availableInventory[itemId] = (gameState.inventory[itemId] || 0) - (usedItems[itemId] || 0);
+            });
+
+            // Create a projected game state that includes pickpocketed keys
+            const projectedGameState: GameState = {
+                ...gameState,
+                map: projectedMap,
+                players: projectedPlayers,
+                guards: projectedGuards,
+                playerKeys: projectedPlayerKeys,
+                pickpocketedGuards: projectedPickpocketedGuards,
+            };
+
+            const adjacentActions = calculateAdjacentActions(projectedGameState, currentScenario, availableInventory);
+
+            const planningMonitoredTiles: GameState['monitoredTiles'] = {};
+            if (projectedCamerasActive) {
+                projectedCameras.forEach(cam => {
+                    if (cam.disabled || cam.looperTimer) return;
+                    const time = timeForProjection;
+                    // NEW: Sensor Interference - hide vision after duration
+                    if (cam.hideInPlanningAfter !== undefined && time > cam.hideInPlanningAfter) return;
+
+                    const frameIndex = Math.floor(time / cam.period) % cam.pattern.length;
+                    cam.pattern[frameIndex]?.forEach(pos => {
+                        planningMonitoredTiles[`${pos.x}-${pos.y}`] = { status: 'potential', orientation: cam.orientation };
+                    });
+                });
             }
-        }
-        const ambiguousActionTargets = new Map<ActionType, { x: number, y: number }[]>();
-        for (const [action, targets] of actionTargetMap.entries()) {
-            if (targets.length > 1) {
-                ambiguousActionTargets.set(action, targets);
+
+            const projectedGuardVisionTiles = new Set<string>();
+            projectedGuards.forEach(guard => {
+                // NEW: If patrol is hidden, vision only works at 5-second 'pings' in planning
+                if (guard.hidePatrolInPlanning && timeForProjection % 5 !== 0) return;
+                calculateGuardVision(guard, projectedMap).forEach(tile => projectedGuardVisionTiles.add(tile));
+            });
+
+            const actionTargetMap = new Map<ActionType, { x: number, y: number }[]>();
+            for (const action of adjacentActions) {
+                if (action.target) {
+                    if (!actionTargetMap.has(action.action)) {
+                        actionTargetMap.set(action.action, []);
+                    }
+                    actionTargetMap.get(action.action)!.push(action.target);
+                }
             }
+            const ambiguousActionTargets = new Map<ActionType, { x: number, y: number }[]>();
+            for (const [action, targets] of actionTargetMap.entries()) {
+                if (targets.length > 1) {
+                    ambiguousActionTargets.set(action, targets);
+                }
+            }
+
+            // FIX: Use gameState.players as fallback — `players` is not in scope here
+            const activePlayer = projectedPlayers[currentPlayer] || gameState.players[currentPlayer];
+            const checkMove = (dx: number, dy: number) => {
+                if (!activePlayer) return false;
+                const x = activePlayer.x + dx;
+                const y = activePlayer.y + dy;
+                if (y < 0 || y >= projectedMap.length || x < 0 || x >= projectedMap[0].length) return false;
+
+                const targetTile = projectedMap[y][x];
+                const isTargetWalkable = isWalkable(targetTile);
+                const isTargetCar = targetTile === TileType.CAR;
+                const isOccupied = !isTargetCar && projectedPlayers.some(p => p && p.x === x && p.y === y);
+
+                const plate = projectedPressurePlates.find(p => p && p.x === x && p.y === y);
+                const isArmedPressurePlate = (targetTile === TileType.PRESSURE_PLATE || targetTile === TileType.PRESSURE_PLATE_HIDDEN) && plate && !plate.disabled && !plate.foamTimer;
+
+                // A move is valid if it's walkable, not occupied, and not an armed pressure plate. Lasers don't block movement.
+                return isTargetWalkable && !isOccupied && !isArmedPressurePlate;
+            };
+
+            const possibleMoves = {
+                up: checkMove(0, -1),
+                down: checkMove(0, 1),
+                left: checkMove(-1, 0),
+                right: checkMove(1, 0),
+            };
+
+
+            return {
+                gameState,
+                projectedMap,
+                projectedPlayers,
+                projectedCameras,
+                projectedCamerasActive,
+                projectedGuards,
+                projectedLaserGrids,
+                projectedActiveFuses,
+                projectedStunEffect,
+                detectedHiddenPlates,
+                planningMonitoredTiles,
+                projectedGuardVisionTiles,
+                activePlayer,
+                allPlayersFinalPositions,
+                ambiguousActionTargets,
+                possibleMoves,
+                onMapClick: handleTargetSelection,
+                isTargeting: !!isTargeting,
+                validTargets,
+                noisePreview,
+                adjacentActions,
+                onMove: handleMove,
+                onInteract: handleInteract,
+                onWait: handleWait,
+                onUndo: handleUndo,
+                canUndo: planHistory.current.length > 1,
+                onExecutePlan: handleExecutePlan,
+                onSwitchPlayer: handleSwitchPlayer,
+                onEveryBodyRun: handleEveryBodyRun,
+                onCancelTargeting: handleCancelTargeting,
+                onAbortMission: handleAbortMissionClick,
+                onSavePlan: handleSavePlan,
+                onLoadPlan: handleLoadPlan,
+                onToggleFreeze: handleToggleFreeze,
+                onRewindPlan: handleRewindPlan,
+                planLength: gameState.plan.length,
+                campaignState,
+                gearCost,
+                itemToBuy,
+                handleSelectItemToBuy,
+                handleConfirmBuyItem,
+                handleCancelBuyItem,
+                currentScenarioTier: currentScenario.tier,
+                currentScenario,
+                isIsometric,
+                toggleIsometric,
+            };
+        } catch (e) {
+            console.error('[contextValue] Fatal error computing game context:', e);
+            return null;
         }
-
-        const activePlayer = projectedPlayers[gameState.currentPlayer];
-        const checkMove = (dx: number, dy: number) => {
-            const x = activePlayer.x + dx;
-            const y = activePlayer.y + dy;
-            if (y < 0 || y >= projectedMap.length || x < 0 || x >= projectedMap[0].length) return false;
-
-            const targetTile = projectedMap[y][x];
-            const isTargetWalkable = isWalkable(targetTile);
-            const isTargetCar = targetTile === TileType.CAR;
-            const isOccupied = !isTargetCar && projectedPlayers.some(p => p.x === x && p.y === y);
-
-            const plate = projectedPressurePlates.find(p => p.x === x && p.y === y);
-            const isArmedPressurePlate = (targetTile === TileType.PRESSURE_PLATE || targetTile === TileType.PRESSURE_PLATE_HIDDEN) && plate && !plate.disabled && !plate.foamTimer;
-
-            // A move is valid if it's walkable, not occupied, and not an armed pressure plate. Lasers don't block movement.
-            return isTargetWalkable && !isOccupied && !isArmedPressurePlate;
-        };
-
-        const possibleMoves = {
-            up: checkMove(0, -1),
-            down: checkMove(0, 1),
-            left: checkMove(-1, 0),
-            right: checkMove(1, 0),
-        };
-
-
-        return {
-            gameState,
-            projectedMap,
-            projectedPlayers,
-            projectedCameras,
-            projectedCamerasActive,
-            projectedGuards,
-            projectedLaserGrids,
-            projectedActiveFuses,
-            projectedStunEffect,
-            detectedHiddenPlates,
-            planningMonitoredTiles,
-            projectedGuardVisionTiles,
-            activePlayer,
-            allPlayersFinalPositions,
-            ambiguousActionTargets,
-            possibleMoves,
-            onMapClick: handleTargetSelection,
-            isTargeting: !!isTargeting,
-            validTargets,
-            noisePreview,
-            adjacentActions,
-            onMove: handleMove,
-            onInteract: handleInteract,
-            onWait: handleWait,
-            onUndo: handleUndo,
-            canUndo: planHistory.current.length > 1,
-            onExecutePlan: handleExecutePlan,
-            onSwitchPlayer: handleSwitchPlayer,
-            onEveryBodyRun: handleEveryBodyRun,
-            onCancelTargeting: handleCancelTargeting,
-            onAbortMission: handleAbortMissionClick,
-            onSavePlan: handleSavePlan,
-            onLoadPlan: handleLoadPlan,
-            onToggleFreeze: handleToggleFreeze,
-            onRewindPlan: handleRewindPlan,
-            planLength: gameState.plan.length,
-            campaignState,
-            gearCost,
-            itemToBuy,
-            handleSelectItemToBuy,
-            handleConfirmBuyItem,
-            handleCancelBuyItem,
-            currentScenarioTier: currentScenario.tier,
-            currentScenario,
-        };
-    }, [gameState, currentScenario, isTargeting, validTargets, handleMove, handleInteract, handleWait, handleUndo, handleSwitchPlayer, handleExecutePlan, handleEveryBodyRun, handleTargetSelection, handleCancelTargeting, handleAbortMissionClick, handleToggleFreeze, campaignState, gearCost, itemToBuy, handleSelectItemToBuy, handleConfirmBuyItem, handleCancelBuyItem, noisePreview, handleRewindPlan, projection, timeForProjection, allPlayersFinalPositions]);
+    }, [gameState, currentScenario, isTargeting, validTargets, handleMove, handleInteract, handleWait, handleUndo, handleSwitchPlayer, handleExecutePlan, handleEveryBodyRun, handleTargetSelection, handleCancelTargeting, handleAbortMissionClick, handleToggleFreeze, campaignState, gearCost, itemToBuy, handleSelectItemToBuy, handleConfirmBuyItem, handleCancelBuyItem, noisePreview, handleRewindPlan, projection, timeForProjection, allPlayersFinalPositions, isIsometric, toggleIsometric]);
 
     // --- UI Rendering ---
 
@@ -2798,7 +2837,19 @@ const App = () => {
     };
 
     const renderGame = () => {
-        if (!gameState || !contextValue) return <div>Loading...</div>;
+        console.log('[renderGame] State:', { hasGameState: !!gameState, hasContext: !!contextValue, screen });
+        if (!gameState || !contextValue) {
+            return (
+                <div className="flex h-screen w-full items-center justify-center bg-slate-900 text-white font-mono text-xl">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+                        <span>INITIALIZING HEIST ENGINE...</span>
+                        {!gameState && <div className="text-xs text-slate-500">Waiting for game state...</div>}
+                        {!contextValue && <div className="text-xs text-slate-500">Waiting for context...</div>}
+                    </div>
+                </div>
+            );
+        }
         return (
             <GameContext.Provider value={contextValue}>
                 <div className="flex flex-col h-screen bg-parchment dark:bg-slate-950 font-typewriter relative overflow-hidden">
@@ -2918,39 +2969,77 @@ const App = () => {
         );
     };
 
-    return (
-        <div id="app-root" className="h-full w-full">
-            <h1 className="sr-only">Heistology - Tactical Heist Planning Simulator</h1>
-            {renderAppContent()}
-            {renderOperationsCompletedModal()}
-            {renderWelcomeScreen()}
-            {/* {renderRecruitmentModal()} // Job Ad commented out per user request */}
-            {renderTutorialModal()}
-            <AbandonmentSurvey hasStartedHeist={hasStartedHeist} />
-            {isHandbookVisible && <Handbook onClose={() => setIsHandbookVisible(false)} />}
-            {renderGodModeModal()}
-            {renderImprintModal()}
-            <CookieBanner forceOpen={isCookieBannerOpen} onClose={() => setIsCookieBannerOpen(false)} />
-            <div className="fixed bottom-0 left-0 right-0 z-[40] text-[8px] md:text-[10px] text-slate-500/60 dark:text-slate-600/60 font-mono pointer-events-auto flex gap-1 md:gap-2 select-none items-center justify-center bg-slate-100/30 dark:bg-black/30 px-1 md:px-2 py-0.5 backdrop-blur-[1px]">
-                <span className="hidden md:inline">Heistology (c) 2026 hello@heistology.com {t('ui.game_version')}</span>
-                <span className="md:hidden">© 2026</span>
-                <span className="opacity-50">|</span>
-                <button
-                    onClick={() => setIsImprintVisible(true)}
-                    className="hover:text-cyan-600 dark:hover:text-cyan-400 underline decoration-dotted underline-offset-2 transition-colors cursor-pointer"
-                >
-                    {t('ui.imprint')}
-                </button>
-                <span className="opacity-50">|</span>
-                <button
-                    onClick={() => setIsCookieBannerOpen(true)}
-                    className="hover:text-cyan-600 dark:hover:text-cyan-400 underline decoration-dotted underline-offset-2 transition-colors cursor-pointer"
-                >
-                    {t('cookies.title')}
-                </button>
+    if (lastError) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen bg-slate-950 text-white p-8 font-mono">
+                <div className="max-w-2xl w-full bg-slate-900 border-2 border-red-500/50 p-6 rounded-lg shadow-2xl">
+                    <h1 className="text-2xl font-bold text-red-500 mb-4 flex items-center gap-2">
+                        <span className="text-3xl">⚠️</span> CRITICAL ENGINE FAILURE
+                    </h1>
+                    <p className="text-slate-300 mb-4 bg-black/50 p-3 rounded border border-red-500/20 text-sm overflow-auto max-h-40">
+                        {lastError.message}
+                    </p>
+                    <div className="flex flex-col gap-3">
+                        <button 
+                            onClick={() => { setLastError(null); setScreen('campaignHub'); }}
+                            className="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded font-bold transition-colors uppercase tracking-widest"
+                        >
+                            Return to Safe House
+                        </button>
+                        <button 
+                            onClick={handleResetApp}
+                            className="w-full border border-slate-700 hover:bg-slate-800 text-slate-400 py-2 rounded text-xs transition-colors"
+                        >
+                            Emergency Factory Reset
+                        </button>
+                    </div>
+                </div>
             </div>
-        </div>
-    );
+        );
+    }
+
+    try {
+        return (
+            <div id="app-root" className="h-full w-full">
+                <h1 className="sr-only">Heistology - Tactical Heist Planning Simulator</h1>
+                {renderAppContent()}
+                {renderOperationsCompletedModal()}
+                {renderWelcomeScreen()}
+                {/* {renderRecruitmentModal()} // Job Ad commented out per user request */}
+                {renderTutorialModal()}
+                <AbandonmentSurvey hasStartedHeist={hasStartedHeist} />
+                {isHandbookVisible && <Handbook onClose={() => setIsHandbookVisible(false)} />}
+                {renderGodModeModal()}
+                {renderImprintModal()}
+                <CookieBanner forceOpen={isCookieBannerOpen} onClose={() => setIsCookieBannerOpen(false)} />
+                <div className="fixed bottom-0 left-0 right-0 z-[40] text-[8px] md:text-[10px] text-slate-500/60 dark:text-slate-600/60 font-mono pointer-events-auto flex gap-1 md:gap-2 select-none items-center justify-center bg-slate-100/30 dark:bg-black/30 px-1 md:px-2 py-0.5 backdrop-blur-[1px]">
+                    <span className="hidden md:inline">Heistology (c) 2026 hello@heistology.com {t('ui.game_version')}</span>
+                    <span className="md:hidden">© 2026</span>
+                    <span className="opacity-50">|</span>
+                    <button
+                        onClick={() => setIsImprintVisible(true)}
+                        className="hover:text-cyan-600 dark:hover:text-cyan-400 underline decoration-dotted underline-offset-2 transition-colors cursor-pointer"
+                    >
+                        {t('ui.imprint')}
+                    </button>
+                    <span className="opacity-50">|</span>
+                    <button
+                        onClick={() => setIsCookieBannerOpen(true)}
+                        className="hover:text-cyan-600 dark:hover:text-cyan-400 underline decoration-dotted underline-offset-2 transition-colors cursor-pointer"
+                    >
+                        {t('cookies.title')}
+                    </button>
+                </div>
+            </div>
+        );
+    } catch (e) {
+        console.error('[App] Root render error:', e);
+        return (
+            <div className="p-20 bg-red-900 text-white font-mono">
+                FATAL RENDER ERROR: {String(e)}
+            </div>
+        );
+    }
 };
 
 export default App;

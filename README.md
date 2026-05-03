@@ -8,9 +8,9 @@ A top-down heist strategy game inspired by classics like *They Stole a Million*.
 
 **Heistology** is a tactical heist simulation where precision planning meets high-stakes execution. Players must navigate complex environments, bypass security systems, and escape with the loot.
 
-### Version: 1.00 (Released Feb 12, 2026)
+### Version: 1.1.0 (Released April 13, 2026)
 
-This is the official **Version 1.00** release of Heistology. It is a tactical heist simulator featuring core mechanics, planning systems, and AI behaviors. We hope you enjoy coordinating the perfect crime! Feedback and contributions are always welcome.
+This is the **Version 1.1.0** update of Heistology. It features refined core mechanics, an integrated bug reporting system, and enhanced persistent storage. Feedback and contributions are always welcome.
 
 ### Key Features
 
@@ -21,6 +21,8 @@ This is the official **Version 1.00** release of Heistology. It is a tactical he
 -   **Map Editor:** Create, test, and share your own heist scenarios with a built-in level editor.
 -   **Reputation System:** Build your name in the underworld to unlock more lucrative jobs.
 -   **Procedural Reporting:** Receive dynamic newspaper reports summarizing your heist's outcome.
+-   **Integrated Bug Reporting:** Easily report issues directly from the game using the built-in Sentry-powered bug button (🐛).
+-   **Cookie & Privacy Management:** Built-in compliance features including cookie consent and project imprint.
 
 ## Technology Stack
 
@@ -43,8 +45,8 @@ This is the official **Version 1.00** release of Heistology. It is a tactical he
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/heistology.git
-    cd heistology
+    git clone https://github.com/your-username/HeistologyGame.git
+    cd HeistologyGame
     ```
 
 2.  **Install dependencies:**
@@ -81,8 +83,15 @@ This is the official **Version 1.00** release of Heistology. It is a tactical he
 
 -   **Scenarios:** Defined in `scenarios.ts`.
 -   **Roster:** Character data found in `roster.ts`.
--   **Mechanics:** Core logic resides in `lib/` (pathfinding, state management, etc.).
--   **Validation:** Use `npm run validate` (if configured) or run verification scripts like `verify_mechanics.ts`.
+-   **Mechanics:** Core logic resides in `lib/` (pathfinding, game loop, state management, etc.).
+-   **Local Utilities:** The repository includes several local developer scripts for scenario validation and AI testing (e.g., `verify_mechanics.ts`, `validate_scenarios.js`).
+
+## Additional Documentation
+
+-   [Sentry Setup Guide](SENTRY_SETUP.md) - Instructions for configuring bug tracking.
+-   [Sentry Testing](SENTRY_TESTING.md) - How to verify your Sentry implementation.
+-   [Fonts Installation](FONTS_INSTALLATION.md) - Guide for setting up custom typography.
+-   [Implementation Summary](IMPLEMENTATION_SUMMARY.md) - Overview of recent major changes.
 
 ## Contributing
 

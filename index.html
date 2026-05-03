@@ -96,7 +96,7 @@
     });
 
     gtag('js', new Date());
-    gtag('config', 'G-D5SZSYY9KW');
+    gtag('config', 'G-D5SZSYY9KW', { send_page_view: false });
   </script>
 
   <!-- GoatCounter - Privacy-friendly analytics -->
@@ -474,6 +474,29 @@
       the importmap to function correctly. Without it, `import` statements would throw an error.
     -->
   <script type="module" src="/index.tsx"></script>
+
+  <!-- Global error handler: catches ANY crash and makes it visible on screen -->
+  <script>
+    window.onerror = function (message, source, lineno, colno, error) {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);color:#ff4444;font-family:monospace;padding:40px;z-index:99999;overflow:auto;white-space:pre-wrap;font-size:14px;';
+      overlay.innerHTML = '<h1 style="color:#ff6666;font-size:24px;margin-bottom:20px;">⚠️ RUNTIME ERROR</h1>'
+        + '<div style="color:#ffaaaa;margin-bottom:10px;">' + message + '</div>'
+        + '<div style="color:#888;font-size:12px;">Source: ' + source + ':' + lineno + ':' + colno + '</div>'
+        + (error && error.stack ? '<pre style="color:#ff8888;margin-top:20px;font-size:11px;max-height:60vh;overflow:auto;">' + error.stack + '</pre>' : '')
+        + '<button onclick="this.parentElement.remove()" style="margin-top:20px;padding:10px 20px;background:#ff4444;color:white;border:none;cursor:pointer;font-family:monospace;font-size:14px;">DISMISS</button>';
+      document.body.appendChild(overlay);
+    };
+    window.addEventListener('unhandledrejection', function (e) {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);color:#ff4444;font-family:monospace;padding:40px;z-index:99999;overflow:auto;white-space:pre-wrap;font-size:14px;';
+      overlay.innerHTML = '<h1 style="color:#ff6666;font-size:24px;margin-bottom:20px;">⚠️ UNHANDLED PROMISE REJECTION</h1>'
+        + '<div style="color:#ffaaaa;margin-bottom:10px;">' + (e.reason ? (e.reason.message || e.reason) : 'Unknown') + '</div>'
+        + (e.reason && e.reason.stack ? '<pre style="color:#ff8888;margin-top:20px;font-size:11px;max-height:60vh;overflow:auto;">' + e.reason.stack + '</pre>' : '')
+        + '<button onclick="this.parentElement.remove()" style="margin-top:20px;padding:10px 20px;background:#ff4444;color:white;border:none;cursor:pointer;font-family:monospace;font-size:14px;">DISMISS</button>';
+      document.body.appendChild(overlay);
+    });
+  </script>
 </body>
 
 </html>

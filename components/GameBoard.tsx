@@ -11,11 +11,31 @@ import { CameraIcon, DiamondIcon, KeyIcon, PlayerIcon, SafeIcon, CarIcon, Police
 import { isVisionHighlightable } from '../lib/tiles';
 // Import the new GameContext to consume state.
 import { GameContext } from '../App';
-// Import the new character-specific icons.
 import { CharacterIcons } from './CharacterIcons';
 // Import the new shared Tile component.
 import { Tile } from './Tile';
+import { IsoSprite } from './IsoSprite';
 import { CHARACTER_COLORS } from '../roster';
+
+// Helper to map text colors to chunky 3D block colors
+const getPawnColors = (colorClass: string) => {
+    if (colorClass.includes('orange')) return { top: '#fb923c', dark: '#c2410c', light: '#ea580c' };
+    if (colorClass.includes('red')) return { top: '#f87171', dark: '#dc2626', light: '#ef4444' };
+    if (colorClass.includes('sky')) return { top: '#38bdf8', dark: '#0284c7', light: '#0ea5e9' };
+    if (colorClass.includes('pink')) return { top: '#f472b6', dark: '#db2777', light: '#ec4899' };
+    if (colorClass.includes('emerald')) return { top: '#34d399', dark: '#059669', light: '#10b981' };
+    if (colorClass.includes('yellow')) return { top: '#facc15', dark: '#ca8a04', light: '#eab308' };
+    if (colorClass.includes('blue')) return { top: '#60a5fa', dark: '#2563eb', light: '#3b82f6' };
+    if (colorClass.includes('teal')) return { top: '#2dd4bf', dark: '#0d9488', light: '#14b8a6' };
+    if (colorClass.includes('indigo')) return { top: '#818cf8', dark: '#4f46e5', light: '#6366f1' };
+    if (colorClass.includes('fuchsia')) return { top: '#e879f9', dark: '#c026d3', light: '#d946ef' };
+    if (colorClass.includes('rose')) return { top: '#fb7185', dark: '#e11d48', light: '#f43f5e' };
+    if (colorClass.includes('slate')) return { top: '#94a3b8', dark: '#475569', light: '#64748b' };
+    if (colorClass.includes('cyan')) return { top: '#22d3ee', dark: '#0891b2', light: '#06b6d4' };
+    if (colorClass.includes('lime')) return { top: '#a3e635', dark: '#65a30d', light: '#84cc16' };
+    if (colorClass.includes('amber')) return { top: '#fbbf24', dark: '#b45309', light: '#d97706' };
+    return { top: '#9ca3af', dark: '#4b5563', light: '#6b7280' };
+};
 
 
 
@@ -40,6 +60,7 @@ export const GameBoard: React.FC = () => {
         projectedLaserGrids,
         projectedActiveFuses,
         projectedStunEffect,
+        projectedCameras,
         planningMonitoredTiles,
         projectedGuardVisionTiles,
         detectedHiddenPlates,
@@ -47,7 +68,8 @@ export const GameBoard: React.FC = () => {
         onMapClick,
         isTargeting,
         validTargets,
-        noisePreview
+        noisePreview,
+        isIsometric,
     } = context;
 
     const {
@@ -74,7 +96,7 @@ export const GameBoard: React.FC = () => {
     const playersToRender = phase === 'planning' ? projectedPlayers : gameState.players;
     const guardsToRender = phase === 'planning' ? projectedGuards : gameState.guards;
     const laserGridsToRender = phase === 'planning' ? projectedLaserGrids : gameState.laserGrids;
-    const camerasToRender = phase === 'planning' ? context.projectedCameras : gameState.cameras;
+    const camerasToRender = phase === 'planning' ? projectedCameras : gameState.cameras;
     const monitoredTilesToRender = phase === 'planning' ? planningMonitoredTiles : gameState.monitoredTiles;
     const guardVisionToRender = phase === 'planning' ? projectedGuardVisionTiles : gameState.guardVisionTiles;
 
@@ -87,20 +109,64 @@ export const GameBoard: React.FC = () => {
         );
     }
 
+    const ISO_W = 80;
+    const ISO_H = 40;
+
     // Calculate the total pixel dimensions of the grid container.
-    const containerWidth = mapToRender[0].length * TILE_SIZE;
-    const containerHeight = mapToRender.length * TILE_SIZE;
+    const mapWidthTiles = mapToRender[0]?.length || 20;
+    const mapHeightTiles = mapToRender.length || 20;
+    
+    // In 2D: width = cols * 40, height = rows * 40
+    // In Iso: diamond width total = (cols + rows) * (ISO_W / 2). Height = (cols + rows) * (ISO_H / 2)
+    const containerWidth = isIsometric 
+        ? (mapWidthTiles + mapHeightTiles) * (ISO_W / 2) 
+        : mapWidthTiles * TILE_SIZE;
+        
+    const containerHeight = isIsometric 
+        ? (mapWidthTiles + mapHeightTiles) * (ISO_H / 2) + 200 // padding for top extrusions
+        : mapHeightTiles * TILE_SIZE;
+
+    // Helper to abstract 2D vs 2.5D coordinates
+    const getPos = (x: number | undefined, y: number | undefined, layerOffset = 0) => {
+        if (x === undefined || y === undefined || isNaN(x) || isNaN(y)) {
+            return { left: 0, top: 0, width: 0, height: 0, zIndex: 0 };
+        }
+        if (!isIsometric) {
+            return {
+                left: x * TILE_SIZE,
+                top: y * TILE_SIZE,
+                width: TILE_SIZE,
+                height: TILE_SIZE,
+                zIndex: layerOffset // in 2D we just use standard fixed layers
+            };
+        }
+        
+        // Iso Projection
+        // We shift the entire diamond right so x=0, y=Max doesn't go off screen.
+        const offsetX = mapHeightTiles * (ISO_W / 2);
+        const offsetY = 100; // Push down to leave room for tall walls at y=0, x=0
+        
+        return {
+            left: (x - y) * (ISO_W / 2) + offsetX - (ISO_W / 2),
+            top: (x + y) * (ISO_H / 2) + offsetY,
+            width: ISO_W,
+            height: ISO_H,
+            // Magic sorting: Lower Y + X means "further back" (closer to top of screen).
+            // Multiply by 10 to give space for layers.
+            zIndex: Math.floor(x + y) * 10 + layerOffset 
+        };
+    };
 
     const activePlayerProjected = projectedPlayers[currentPlayer];
     const playerPixelPos = activePlayerProjected ? {
-        x: (activePlayerProjected.x + 0.5) * TILE_SIZE,
-        y: (activePlayerProjected.y + 0.5) * TILE_SIZE,
+        x: isIsometric ? getPos(activePlayerProjected.x, activePlayerProjected.y).left + (ISO_W/2) : (activePlayerProjected.x + 0.5) * TILE_SIZE,
+        y: isIsometric ? getPos(activePlayerProjected.x, activePlayerProjected.y).top + (ISO_H/2) : (activePlayerProjected.y + 0.5) * TILE_SIZE,
     } : null;
 
 
     return (
         // The outermost container provides styling like borders and shadows.
-        <div className={`relative bg-blueprint blueprint-grid p-4 border-8 border-slate-800/20 dark:border-white/10 rounded-sm shadow-inner ${explosionEffect && explosionEffect.duration > 0 ? 'screen-rattle' : ''}`}>
+        <div className={`relative bg-blueprint blueprint-grid p-4 border-8 border-slate-800/20 dark:border-white/10 rounded-sm shadow-inner ${explosionEffect && explosionEffect.duration > 0 ? 'screen-rattle' : ''} ${isIsometric ? 'is-isometric' : ''}`}>
             {/* This container holds all the grid elements and is sized to fit the map perfectly. */}
             <div id="game-board-grid-parent" className="relative" style={{ width: containerWidth, height: containerHeight }}>
                 <FloorPatternDefs />
@@ -116,11 +182,11 @@ export const GameBoard: React.FC = () => {
                         return (
                             <div
                                 key={`${x}-${y}`}
-                                style={{ left: x * TILE_SIZE, top: y * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }}
+                                style={getPos(x, y)}
                                 className="absolute cursor-pointer"
                                 onClick={() => onMapClick(x, y)}
                             >
-                                <Tile type={tile} alarmSystemActive={alarmSystemActive} isPrimaryTarget={isPrimary} isSecondaryTarget={isSecondary} camera={camera} />
+                                <Tile type={tile} alarmSystemActive={alarmSystemActive} isPrimaryTarget={isPrimary} isSecondaryTarget={isSecondary} camera={camera} isIsometric={isIsometric} />
                             </div>
                         )
                     })
@@ -132,7 +198,7 @@ export const GameBoard: React.FC = () => {
                     const val = typeof treasure === 'number' ? treasure : (treasure as { value: number }).value;
                     const text = val >= 1000 ? `$${val / 1000}k` : `$${val}`;
                     return (
-                        <div key={`treasure-val-${key}`} className="absolute pointer-events-none flex items-center justify-center z-20" style={{ left: x * TILE_SIZE, top: y * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }}>
+                        <div key={`treasure-val-${key}`} className="absolute pointer-events-none flex items-center justify-center z-20" style={getPos(x, y)}>
                             <span className="bg-slate-900/80 dark:bg-black/60 text-yellow-400 text-[10px] font-black px-1 py-0.5 rounded shadow-lg border border-white/10 backdrop-blur-[1px] leading-none">
                                 {text}
                             </span>
@@ -145,12 +211,7 @@ export const GameBoard: React.FC = () => {
                     <div
                         key={`target-${target.x}-${target.y}`}
                         className="absolute pointer-events-none z-20"
-                        style={{
-                            left: target.x * TILE_SIZE,
-                            top: target.y * TILE_SIZE,
-                            width: TILE_SIZE,
-                            height: TILE_SIZE,
-                        }}
+                        style={getPos(target.x, target.y)}
                     >
                         <div className="w-full h-full bg-yellow-400/50 border-2 border-yellow-300 rounded-md animate-pulse"></div>
                     </div>
@@ -168,39 +229,44 @@ export const GameBoard: React.FC = () => {
                         <div
                             key={`guard-vision-${key}`}
                             className="absolute pointer-events-none z-4 bg-yellow-500/40"
-                            style={{
-                                left: x * TILE_SIZE,
-                                top: y * TILE_SIZE,
-                                width: TILE_SIZE,
-                                height: TILE_SIZE,
-                            }}
+                            style={getPos(x, y)}
                         />
                     );
                 })}
 
                 {/* Layer 3: Render Guard Patrol Routes (only during the Planning Phase). */}
-                {phase === 'planning' && guardsToRender.map(guard => (
+                {phase === 'planning' && guardsToRender.map(guard => !guard ? null : (
                     <React.Fragment key={`patrol-route-${guard.id}`}>
-                        {guard.patrolRoute.map((point, pointIndex) => {
+                            {guard.patrolRoute.map((point, pointIndex) => {
                             if (pointIndex === 0) return null; // Don't draw a line from the first point.
                             const prevPoint = guard.patrolRoute[pointIndex - 1];
+                            const p1 = getPos(point.x, point.y, 10);
+                        const p2 = getPos(prevPoint.x, prevPoint.y, 10);
+                        
+                        let lineStyle: Record<string, number | string> = {};
+                        if (!isIsometric) {
                             const left = Math.min(point.x, prevPoint.x) * TILE_SIZE + TILE_SIZE / 2 - 1;
                             const top = Math.min(point.y, prevPoint.y) * TILE_SIZE + TILE_SIZE / 2 - 1;
                             const width = Math.abs(point.x - prevPoint.x) * TILE_SIZE + 2;
                             const height = Math.abs(point.y - prevPoint.y) * TILE_SIZE + 2;
+                            lineStyle = { left, top, width, height, zIndex: 10 };
+                        } else {
+                            // In isometric, just draw a dot at the footprint center to keep it simple
+                            lineStyle = { left: p1.left + ISO_W/2 - 4, top: p1.top + ISO_H/2 - 4, width: 8, height: 8, zIndex: p1.zIndex, borderRadius: "50%" };
+                        }
 
                             return (
                                 <div
                                     key={`path-${guard.id}-${pointIndex}`}
                                     className="absolute pointer-events-none z-10"
-                                    style={{ left, top, width, height }}
+                                    style={lineStyle}
                                 >
-                                    <svg width={width} height={height} className="absolute left-0 top-0">
+                                    <svg width={lineStyle.width} height={lineStyle.height} className="absolute left-0 top-0">
                                         <line
-                                            x1={point.x === prevPoint.x ? 1 : (point.x > prevPoint.x ? 1 : width - 1)}
-                                            y1={point.y === prevPoint.y ? 1 : (point.y > prevPoint.y ? 1 : height - 1)}
-                                            x2={point.x === prevPoint.x ? 1 : (point.x > prevPoint.x ? width - 1 : 1)}
-                                            y2={point.y === prevPoint.y ? 1 : (point.y > prevPoint.y ? height - 1 : 1)}
+                                            x1={point.x === prevPoint.x ? 1 : (point.x > prevPoint.x ? 1 : (lineStyle.width || 2) - 1)}
+                                            y1={point.y === prevPoint.y ? 1 : (point.y > prevPoint.y ? 1 : (lineStyle.height || 2) - 1)}
+                                            x2={point.x === prevPoint.x ? 1 : (point.x > prevPoint.x ? (lineStyle.width || 2) - 1 : 1)}
+                                            y2={point.y === prevPoint.y ? 1 : (point.y > prevPoint.y ? (lineStyle.height || 2) - 1 : 1)}
                                             stroke="rgba(255, 100, 100, 0.4)"
                                             strokeWidth="2"
                                             strokeDasharray="4, 4"
@@ -227,23 +293,33 @@ export const GameBoard: React.FC = () => {
                                 // Skip drawing lines between identical points (happens during pause)
                                 if (point.x === prevPoint.x && point.y === prevPoint.y) return null;
 
-                                const left = Math.min(point.x, prevPoint.x) * TILE_SIZE + TILE_SIZE / 2 - 1;
-                                const top = Math.min(point.y, prevPoint.y) * TILE_SIZE + TILE_SIZE / 2 - 1;
-                                const width = Math.abs(point.x - prevPoint.x) * TILE_SIZE + 2;
-                                const height = Math.abs(point.y - prevPoint.y) * TILE_SIZE + 2;
+                                const p1 = getPos(point.x, point.y, 10);
+                        const p2 = getPos(prevPoint.x, prevPoint.y, 10);
+                        
+                        let lineStyle = {};
+                        if (!isIsometric) {
+                            const left = Math.min(point.x, prevPoint.x) * TILE_SIZE + TILE_SIZE / 2 - 1;
+                            const top = Math.min(point.y, prevPoint.y) * TILE_SIZE + TILE_SIZE / 2 - 1;
+                            const width = Math.abs(point.x - prevPoint.x) * TILE_SIZE + 2;
+                            const height = Math.abs(point.y - prevPoint.y) * TILE_SIZE + 2;
+                            lineStyle = { left, top, width, height, zIndex: 10 };
+                        } else {
+                            // In isometric, just draw a dot at the footprint center to keep it simple
+                            lineStyle = { left: p1.left + ISO_W/2 - 4, top: p1.top + ISO_H/2 - 4, width: 8, height: 8, zIndex: p1.zIndex, borderRadius: "50%" };
+                        }
 
                                 return (
                                     <div
                                         key={`investigation-${guard.id}-${pointIndex}`}
                                         className="absolute pointer-events-none z-11"
-                                        style={{ left, top, width, height }}
+                                        style={lineStyle}
                                     >
-                                        <svg width={width} height={height} className="absolute left-0 top-0">
+                                        <svg width={lineStyle.width} height={lineStyle.height} className="absolute left-0 top-0">
                                             <line
-                                                x1={point.x === prevPoint.x ? 1 : (point.x > prevPoint.x ? 1 : width - 1)}
-                                                y1={point.y === prevPoint.y ? 1 : (point.y > prevPoint.y ? 1 : height - 1)}
-                                                x2={point.x === prevPoint.x ? 1 : (point.x > prevPoint.x ? width - 1 : 1)}
-                                                y2={point.y === prevPoint.y ? 1 : (point.y > prevPoint.y ? height - 1 : 1)}
+                                                x1={point.x === prevPoint.x ? 1 : (point.x > prevPoint.x ? 1 : (lineStyle.width || 2) - 1)}
+                                                y1={point.y === prevPoint.y ? 1 : (point.y > prevPoint.y ? 1 : (lineStyle.height || 2) - 1)}
+                                                x2={point.x === prevPoint.x ? 1 : (point.x > prevPoint.x ? (lineStyle.width || 2) - 1 : 1)}
+                                                y2={point.y === prevPoint.y ? 1 : (point.y > prevPoint.y ? (lineStyle.height || 2) - 1 : 1)}
                                                 stroke="rgba(255, 165, 0, 0.7)"
                                                 strokeWidth="3"
                                                 strokeDasharray="6, 3"
@@ -268,7 +344,7 @@ export const GameBoard: React.FC = () => {
                         <div
                             key={`camera-vision-${key}`}
                             className={`absolute pointer-events-none z-3 ${value.status === 'potential' ? 'bg-yellow-500/10' : 'bg-yellow-500/30'}`}
-                            style={{ left: x * TILE_SIZE, top: y * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }}
+                            style={getPos(x, y)}
                         />
                     );
                 })}
@@ -283,13 +359,7 @@ export const GameBoard: React.FC = () => {
                         <div
                             key={`noise-preview-${key}`}
                             className="absolute pointer-events-none z-20 bg-blue-400/20 rounded-full animate-pulse flex items-center justify-center outline outline-1 outline-blue-400/30"
-                            style={{
-                                left: x * TILE_SIZE,
-                                top: y * TILE_SIZE,
-                                width: TILE_SIZE,
-                                height: TILE_SIZE,
-                                transform: `scale(${0.3 + scale * 0.7})`
-                            }}
+                            style={{ ...getPos(x, y), transform: `scale(${0.3 + scale * 0.7})` }}
                         />
                     );
                 })}
@@ -301,14 +371,8 @@ export const GameBoard: React.FC = () => {
                         <div
                             key={`noise-${key}`}
                             className="absolute pointer-events-none z-20 bg-blue-500/30 rounded-full animate-[ping_1.5s_ease-out_infinite] border border-blue-400/50"
-                            style={{
-                                left: x * TILE_SIZE,
-                                top: y * TILE_SIZE,
-                                width: TILE_SIZE,
-                                height: TILE_SIZE,
-                                transform: `scale(${0.2 + scale * 0.8})`,
-                                opacity: 0.1 + scale * 0.5
-                            }}
+                            style={{ ...getPos(x, y), transform: `scale(${0.2 + scale * 0.8})`,
+                                opacity: 0.1 + scale * 0.5 }}
                         />
                     );
                 })}
@@ -320,38 +384,33 @@ export const GameBoard: React.FC = () => {
                         <div
                             key={`blast-${key}`}
                             className="absolute pointer-events-none z-30 bg-orange-600/60 rounded-full animate-[ping_0.6s_ease-out_infinite] border-2 border-yellow-500/50"
-                            style={{
-                                left: x * TILE_SIZE,
-                                top: y * TILE_SIZE,
-                                width: TILE_SIZE,
-                                height: TILE_SIZE,
-                                transform: `scale(${0.4 + scale * 1.2})`,
-                                filter: 'blur(1px)'
-                            }}
+                            style={{ ...getPos(x, y), transform: `scale(${0.4 + scale * 1.2})`,
+                                filter: 'blur(1px)' }}
                         />
                     );
                 })}
                 {((phase === 'planning' ? projectedStunEffect : stunEffect))?.duration! > 0 && Array.from((phase === 'planning' ? projectedStunEffect : stunEffect)!.tiles).map((key: string) => {
                     const [x, y] = key.split('-').map(Number);
-                    return <div key={`stun-${key}`} className="absolute pointer-events-none z-30 bg-blue-300/40 border border-blue-400/50 rounded-sm animate-pulse" style={{ left: x * TILE_SIZE, top: y * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }} />;
+                    return <div key={`stun-${key}`} className="absolute pointer-events-none z-30 bg-blue-300/40 border border-blue-400/50 rounded-sm animate-pulse" style={getPos(x, y)} />;
                 })}
 
                 {/* Layer 6: Laser Grids */}
                 {laserGridsToRender.map(grid => grid.active && grid.beamsOn && grid.beamTiles.map(tile => (
-                    <div key={`laser-beam-${grid.id}-${tile.x}-${tile.y}`} className="absolute pointer-events-none bg-red-500/30 border-t-2 border-red-400 animate-pulse" style={{ left: tile.x * TILE_SIZE, top: tile.y * TILE_SIZE + (TILE_SIZE / 2 - 1), width: TILE_SIZE, height: 2 }} />
+                    <div key={`laser-beam-${grid.id}-${tile.x}-${tile.y}`} className="absolute pointer-events-none bg-red-500/30 border-t-2 border-red-400 animate-pulse" style={{ ...getPos(tile.x, tile.y), height: 2 }} />
                 )))}
 
                 {/* Layer 7: Detected Hidden Plates */}
                 {/* FIX: Explicitly type map key to resolve 'unknown' type error. */}
                 {detectedHiddenPlates.size > 0 && Array.from(detectedHiddenPlates).map((key: string) => {
                     const [x, y] = key.split('-').map(Number);
-                    return <div key={`detected-plate-${key}`} className="absolute pointer-events-none z-20 border-2 border-dashed border-orange-400 animate-pulse" style={{ left: x * TILE_SIZE + 4, top: y * TILE_SIZE + 4, width: TILE_SIZE - 8, height: TILE_SIZE - 8 }} />;
+                    return <div key={`detected-plate-${key}`} className="absolute pointer-events-none z-20 border-2 border-dashed border-orange-400 animate-pulse" style={{ ...getPos(x, y), height: (isIsometric ? ISO_H : TILE_SIZE) - 8 }} />;
                 })}
 
                 {/* Layer 8 REMOVED: Player Path Preview was here */}
 
                 {/* Layer 9: Players and Guards */}
                 {playersToRender.map((player, index) => {
+                    if (!player) return null;
                     const status = playerStatuses[index];
                     const isCurrent = phase === 'planning' && index === currentPlayer;
                     const Icon = CharacterIcons[player.name] || PlayerIcon;
@@ -359,34 +418,28 @@ export const GameBoard: React.FC = () => {
 
                     return (
                         <React.Fragment key={`player-group-${index}`}>
-                            {/* Final Position Ghost (Planning Mode only) */}
-                            {/* Final Position Ghost (Planning Mode only) - Commented out per user request
-                            {phase === 'planning' && context.allPlayersFinalPositions && context.allPlayersFinalPositions[index] && (
-                                <div
-                                    className="absolute pointer-events-none z-10 opacity-30 scale-90"
-                                    style={{
-                                        left: context.allPlayersFinalPositions[index].x * TILE_SIZE,
-                                        top: context.allPlayersFinalPositions[index].y * TILE_SIZE,
-                                        width: TILE_SIZE,
-                                        height: TILE_SIZE,
-                                        filter: 'grayscale(0.5) contrast(1.2)'
-                                    }}
-                                >
-                                    <Icon className={`${playerColor} w-full h-full`} isActive={true} />
-                                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-slate-800/80 text-[8px] text-white px-1 rounded uppercase tracking-tighter">End</div>
-                                </div>
-                            )}
-                            */}
-
-                            {/* Current Timeline Position */}
-                            <div className="absolute transition-all duration-300 pointer-events-none z-20" style={{ left: player.x * TILE_SIZE, top: player.y * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }}>
-                                <div className={`w-full h-full relative ${isCurrent ? 'animate-pulse' : ''}`}>
-                                    <Icon className={`${playerColor} w-full h-full`} isActive={status !== 'captured' && status !== 'knocked_out'} />
+                            {/* Current Position */}
+                            <div
+                                className={`absolute transition-all duration-300 pointer-events-none z-20 ${isCurrent ? 'animate-bounce-subtle' : ''}`}
+                                style={getPos(player.x, player.y)}
+                            >
+                                <div className="w-full h-full relative">
+                                    {isIsometric ? (
+                                        <IsoSprite topColor="#3b82f6" leftColor="#1e40af" rightColor="#2563eb" thickness={24} scale={0.4} />
+                                    ) : (
+                                        <Icon className={`w-full h-full ${playerColor}`} isActive={true} />
+                                    )}
+                                    {/* isCurrent && (
+                                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 animate-bounce flex flex-col items-center">
+                                            <div className="bg-ink text-white text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest whitespace-nowrap shadow-lg">ACTIVE</div>
+                                            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-ink"></div>
+                                        </div>
+                                    ) */}
                                     {status === 'knocked_out' && (
                                         <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-white px-1.5 py-0.5 rounded-md border border-blue-400 shadow-sm z-30">
                                             <span className="text-blue-500 text-xs font-bold leading-none">
                                                 {(() => {
-                                                    const timer = playerKnockoutTimers[index];
+                                                    const timer = playerKnockoutTimers[index] || 0;
                                                     const ticks = 9999 - timer;
                                                     if (ticks === 2) return 'zZz';
                                                     if (ticks === 3) return 'zzZ';
@@ -403,10 +456,14 @@ export const GameBoard: React.FC = () => {
                         </React.Fragment>
                     );
                 })}
-                {guardsToRender.map(guard => (
-                    <div key={`guard-${guard.id}`} className="absolute transition-all duration-300 pointer-events-none z-20" style={{ left: guard.x * TILE_SIZE, top: guard.y * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }}>
-                        <div className="w-full h-full relative">
-                            <GuardIcon />
+                {guardsToRender.map(guard => !guard ? null : (
+                    <div key={`guard-${guard.id}`} className="absolute transition-all duration-300 pointer-events-none z-20" style={getPos(guard.x, guard.y)}>
+                        <div className={`w-full h-full relative`}>
+                            {isIsometric ? (
+                                <IsoSprite topColor="#ef4444" leftColor="#b91c1c" rightColor="#dc2626" thickness={24} scale={0.4} />
+                            ) : (
+                                <GuardIcon />
+                            )}
                             {guard.status === 'knocked_out' && (
                                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-white px-1.5 py-0.5 rounded-md border border-blue-400 shadow-sm z-30">
                                     <span className="text-blue-500 text-xs font-bold leading-none">
@@ -424,8 +481,14 @@ export const GameBoard: React.FC = () => {
                     </div>
                 ))}
                 {policeCar && (
-                    <div className="absolute transition-all duration-300 pointer-events-none z-20" style={{ left: policeCar.x * TILE_SIZE, top: policeCar.y * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }}>
-                        <PoliceCarIcon />
+                    <div className="absolute transition-all duration-300 pointer-events-none z-20" style={getPos(policeCar.x, policeCar.y)}>
+                        <div className={`w-full h-full relative`}>
+                            {isIsometric ? (
+                                <IsoSprite topColor="#3b82f6" leftColor="#1e3a8a" rightColor="#2563eb" thickness={20} scale={1.2} />
+                            ) : (
+                                <PoliceCarIcon />
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -455,27 +518,38 @@ export const GameBoard: React.FC = () => {
                     }
                     if (!IconComponent) return null;
                     return (
-                        <div key={`interaction-${index}`} className="absolute pointer-events-none z-30" style={{ left: interaction.x * TILE_SIZE, top: interaction.y * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }}>
+                        <div key={`interaction-${index}`} className="absolute pointer-events-none z-30" style={{ ...getPos(interaction.x, interaction.y) }}>
                             <div className="w-full h-full" style={transformStyle}>
-                                <IconComponent />
+                                <div style={{ transform: isIsometric ? 'translateZ(25px)' : 'none' }} className="w-full h-full">
+                                    <IconComponent />
+                                </div>
                             </div>
                         </div>
                     );
                 })}
                 {projectedActiveFuses.map((fuse, index) => (
-                    <div key={`fuse-proj-${index}`} className="absolute pointer-events-none z-30" style={{ left: fuse.x * TILE_SIZE, top: fuse.y * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }}>
-                        <PulsatingDynamiteIcon />
-                        <div className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md animate-pulse">{fuse.timer}</div>
+                    <div key={`fuse-proj-${index}`} className="absolute pointer-events-none z-30" style={{ ...getPos(fuse.x, fuse.y) }}>
+                        <div style={{ transform: isIsometric ? 'translateZ(10px)' : 'none' }} className="w-full h-full relative">
+                            <PulsatingDynamiteIcon />
+                            <div className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md animate-pulse">{fuse.timer}</div>
+                        </div>
                     </div>
                 ))}
                 {activeFuses.map((fuse, index) => (
-                    <div key={`fuse-active-${index}`} className="absolute pointer-events-none z-30" style={{ left: fuse.x * TILE_SIZE, top: fuse.y * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE }}>
-                        <PulsatingDynamiteIcon />
-                        <div className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md animate-pulse">{fuse.timer}</div>
+                    <div key={`fuse-active-${index}`} className="absolute pointer-events-none z-30" style={{ ...getPos(fuse.x, fuse.y) }}>
+                        <div style={{ transform: isIsometric ? 'translateZ(10px)' : 'none' }} className="w-full h-full relative">
+                            <PulsatingDynamiteIcon />
+                            <div className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-md animate-pulse">{fuse.timer}</div>
+                        </div>
                     </div>
                 ))}
                 {explosionEffect && explosionEffect.duration > 0 && (
-                    <div className="absolute pointer-events-none z-40 text-6xl font-black text-white explosion-text" style={{ left: (explosionEffect.x + 0.5) * TILE_SIZE, top: (explosionEffect.y + 0.5) * TILE_SIZE, transform: 'translate(-50%, -50%)', textShadow: '0 0 10px orange, 0 0 20px red' }}>
+                    <div className="absolute pointer-events-none z-40 text-6xl font-black text-white explosion-text" style={{ 
+                        left: isIsometric ? getPos(explosionEffect.x, explosionEffect.y).left + ISO_W/2 : (explosionEffect.x + 0.5) * TILE_SIZE, 
+                        top: isIsometric ? getPos(explosionEffect.x, explosionEffect.y).top + ISO_H/2 : (explosionEffect.y + 0.5) * TILE_SIZE, 
+                        transform: 'translate(-50%, -50%)', 
+                        textShadow: '0 0 10px orange, 0 0 20px red' 
+                    }}>
                         BOOM!
                     </div>
                 )}

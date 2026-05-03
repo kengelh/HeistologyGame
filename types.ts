@@ -609,6 +609,9 @@ export interface GameContextType {
   handleCancelBuyItem: () => void;
   // NEW: Pass scenario tier
   currentScenarioTier: number;
+  // NEW: Isometric view toggle
+  isIsometric: boolean;
+  toggleIsometric: () => void;
   // FIX: Add missing property for GameBoard context
   currentScenario: Scenario | null;
 }

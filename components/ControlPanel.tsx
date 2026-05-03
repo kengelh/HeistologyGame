@@ -247,6 +247,8 @@ export const ControlPanel: React.FC = () => {
     handleCancelBuyItem,
     onToggleFreeze,
     currentScenarioTier,
+    isIsometric,
+    toggleIsometric,
   } = context;
 
   const {
@@ -318,12 +320,21 @@ export const ControlPanel: React.FC = () => {
     !REDUNDANT_ACTIONS.includes(a.action)
   );
 
+  // FIX: Safety check for activePlayer to prevent crashes if no player is selected or available.
+  if (!activePlayer) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-slate-400 font-typewriter italic p-4 text-center">
+        {t('ui.no_active_player')}
+      </div>
+    );
+  }
+
   // FIX: Use PlayerIcon as a fallback to prevent a crash if a character icon is missing.
   const Icon = CharacterIcons[activePlayer.name] || PlayerIcon;
   const colorClass = CHARACTER_COLORS[activePlayer.name] || 'text-white';
-  const initials = activePlayer.name.split(' ').map(n => n[0]).join('.').toUpperCase();
+  const initials = (activePlayer.name || '??').split(' ').map(n => n[0]).join('.').toUpperCase();
 
-  const skillSummary = getSkillSummary(activePlayer.skills, t);
+  const skillSummary = getSkillSummary(activePlayer.skills || {}, t);
 
   // FIX: Explicitly type `actionTimings` to fix TypeScript error on line 359.
   const actionTimings: { label: string; action: ActionType }[] = [
@@ -348,8 +359,14 @@ export const ControlPanel: React.FC = () => {
     // Main container for the control panel with consistent styling.
     <div className="flex flex-col h-full bg-white/80 dark:bg-gray-800/50 border-2 border-gray-300 dark:border-cyan-500/30 rounded-lg p-1.5 landscape:p-2 md:p-4 shadow-xl dark:shadow-cyan-500/10 text-slate-700 dark:text-cyan-200 space-y-0.5 landscape:space-y-1 md:space-y-2 backdrop-blur-sm">
       {/* Section 1: Header - Displays current phase and player selection controls. */}
-      <div className="text-center flex-shrink-0">
-        <h2 className="text-xl md:text-2xl landscape:text-sm font-bold uppercase tracking-widest text-cyan-600 dark:text-cyan-400 landscape:hidden">
+      <div className="text-center flex-shrink-0 relative">
+        {/* <button
+           onClick={toggleIsometric}
+           className="absolute right-0 top-0 text-xs md:text-sm font-bold bg-slate-200 dark:bg-gray-700 border-2 border-slate-300 dark:border-cyan-600 text-slate-700 dark:text-cyan-100 px-2 py-0.5 rounded-md hover:bg-slate-300 dark:hover:bg-gray-600 z-10 hidden sm:block shadow-[2px_2px_0px_rgba(0,0,0,0.1)] dark:shadow-[2px_2px_0px_rgba(30,41,59,0.5)] active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all"
+        >
+           {isIsometric ? '2D View' : '3D View'}
+        </button> */}
+        <h2 className="text-xl md:text-2xl landscape:text-sm font-bold uppercase tracking-widest text-cyan-600 dark:text-cyan-400 landscape:hidden pt-1">
           {isPlanning ? t('ui.planning_phase') : t('ui.execution_phase')}
         </h2>
         {/* The player switcher is only shown during the planning phase. */}

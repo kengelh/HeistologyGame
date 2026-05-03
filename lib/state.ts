@@ -298,17 +298,20 @@ export function getProjectedStateAtTime(plan: PlanStep[], scenario: Scenario, pl
     projectedPlayerKeys: number[],
     projectedPickpocketedGuards: Set<number>
 } {
+    if (!scenario || !scenario.map) {
+        throw new Error('getProjectedStateAtTime called with invalid scenario');
+    }
     // Start with fresh copies of the initial scenario data.
-    const projectedMap = scenario.map.map(row => [...row]);
-    const projectedPlayers: Player[] = players.map(p => ({ ...p }));
-    let projectedCameras: Camera[] = scenario.cameras.map(c => ({ ...c }));
+    const projectedMap = scenario.map.map(row => row ? [...row] : []);
+    const projectedPlayers: Player[] = (players || []).filter(Boolean).map(p => ({ ...p }));
+    let projectedCameras: Camera[] = (scenario.cameras || []).filter(Boolean).map(c => ({ ...c }));
     let projectedCamerasActive = true;
-    let projectedLaserGrids: ActiveLaserGrid[] = (scenario.laserGrids || []).map(grid => ({
+    let projectedLaserGrids: ActiveLaserGrid[] = (scenario.laserGrids || []).filter(Boolean).map(grid => ({
         ...grid,
         active: true,
         beamsOn: true,
     }));
-    let projectedPressurePlates: PressurePlate[] = (scenario.pressurePlates || []).map(p => ({ ...p }));
+    let projectedPressurePlates: PressurePlate[] = (scenario.pressurePlates || []).filter(Boolean).map(p => ({ ...p }));
     // Augment the plan with calculated start and end times for each step to make simulation easier.
     const currentPlayerTimes: number[] = Array(players.length).fill(0);
     const projectedFuses: { x: number, y: number, explosionTime: number, timer: number }[] = [];

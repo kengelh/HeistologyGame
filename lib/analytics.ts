@@ -85,11 +85,21 @@ export const trackActionPlanned = (actionType: string, scenarioId: string) => {
  * Tracks high-level navigation between screens in the app.
  */
 export const trackNavigation = (screenName: string) => {
+    const pagePath = `/${screenName}`;
+    const pageTitle = screenName;
+
     // 1. Track in Google Analytics (requires cookie consent)
+    // Use a page_view EVENT (not gtag('config', ...)) for SPA navigation.
+    // Calling config repeatedly re-initializes the measurement ID, which can
+    // inflate session and user counts. A simple event is the correct GA4 pattern.
+    //
+    // The critical fix: page_location must be a synthesized URL using our virtual
+    // path — NOT window.location.href, which always points to '/' in a SPA and
+    // causes all views/events to be attributed to the root page.
     trackEvent('page_view', {
-        page_title: screenName,
-        page_location: window.location.href,
-        page_path: `/${screenName}`
+        page_title: pageTitle,
+        page_location: `${window.location.origin}${pagePath}`,
+        page_path: pagePath,
     });
 
     // 2. Track in GoatCounter (Privacy-friendly, doesn't use cookies)
