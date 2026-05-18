@@ -223,10 +223,21 @@ const App = () => {
     const preExecutionStateRef = React.useRef<GameState | null>(null);
     const preExecutionPlanHistoryRef = React.useRef<PlanStep[][]>([]);
 
+    // Ref to skip analytics tracking on the very first render.
+    // GoatCounter's own script auto-counts the initial page load as '/'.
+    // If we also call trackNavigation on mount, it creates a duplicate count
+    // under '/campaignHub' instead, causing the '/' path to show no visits.
+    const isFirstRender = React.useRef(true);
+
     /**
-     * Effect to track screen navigation in Google Analytics.
+     * Effect to track screen navigation in Google Analytics and GoatCounter.
+     * Skips the initial mount so GoatCounter's auto-count records '/' correctly.
      */
     React.useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
         trackNavigation(screen);
     }, [screen]);
 

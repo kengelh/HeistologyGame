@@ -9,6 +9,37 @@ import { useTranslation } from '../lib/i18n';
 import { CookiePreferences } from '../lib/cookieConsent';
 import { initSentry } from '../lib/sentry';
 
+/**
+ * Fires an initial GA4 page_view hit for the current page.
+ *
+ * WHY THE DELAY: gtag('consent', 'update', ...) pushes to the dataLayer but
+ * GA4 processes it asynchronously. If we fire page_view in the same tick, the
+ * event arrives before the consent grant is applied internally, and GA4 drops
+ * it silently. A 300ms delay ensures the consent update is committed first.
+ *
+ * Retries up to 10 times (5 seconds) in case the async gtag.js script
+ * hasn't loaded yet when consent is first granted.
+ */
+const sendInitialPageView = (retries = 0) => {
+    const fire = () => {
+        if (typeof window !== 'undefined' && (window as any).gtag) {
+            (window as any).gtag('event', 'page_view', {
+                page_title: document.title,
+                page_location: window.location.href,
+                page_path: window.location.pathname,
+            });
+            console.log('[Analytics] GA4 initial page_view fired.');
+        } else if (retries < 10) {
+            // gtag.js not loaded yet — retry every 500ms
+            setTimeout(() => sendInitialPageView(retries + 1), 500);
+        } else {
+            console.warn('[Analytics] GA4 not available after retries — page_view not sent.');
+        }
+    };
+    // Delay to let GA4 process the consent update before we send the hit
+    setTimeout(fire, 300);
+};
+
 interface CookieBannerProps {
     onPreferencesChange?: (preferences: CookiePreferences) => void;
     forceOpen?: boolean;
@@ -54,6 +85,8 @@ export const CookieBanner: React.FC<CookieBannerProps> = ({ onPreferencesChange,
                 // Re-initialize Sentry if allowed
                 if (savedPreferences.analytics) {
                     initSentry();
+                    // Fire an initial page_view so GA4 sees this session
+                    sendInitialPageView();
                 }
 
                 onPreferencesChange?.(savedPreferences);
@@ -80,6 +113,8 @@ export const CookieBanner: React.FC<CookieBannerProps> = ({ onPreferencesChange,
         // Re-initialize Sentry if allowed (or at least acknowledge change)
         if (prefs.analytics) {
             initSentry();
+            // Fire an initial page_view so GA4 sees this session immediately
+            sendInitialPageView();
         }
 
         onPreferencesChange?.(prefs);

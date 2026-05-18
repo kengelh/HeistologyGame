@@ -67,9 +67,9 @@ export const ImprintModal: React.FC<ImprintModalProps> = ({ onClose }) => {
             <p>Hinweis zur verantwortlichen Stelle:</p>
             <p>
                 <strong>Kay Engelhardt</strong><br />
-                c/o Nordbahnstudios<br />
-                Wollankstr 101<br />
-                13187 Berlin<br />
+                c/o Tom Spike GmbH<br />
+                Schivelbeiner Str. 10<br />
+                10439 Berlin<br />
                 E-Mail: hello@heistology.com
             </p>
 
@@ -102,9 +102,9 @@ export const ImprintModal: React.FC<ImprintModalProps> = ({ onClose }) => {
                 <h2>Angaben gemäß § 5 TMG</h2>
                 <p>
                     Kay Engelhardt<br />
-                    c/o Nordbahnstudios<br />
-                    Wollankstr 101<br />
-                    13187 Berlin
+                    <br />
+                    c/o Tom Spike GmbH<br />Schivelbeiner Str. 10<br />
+                    10439 Berlin
                 </p>
 
                 <h2>Kontakt</h2>
@@ -115,8 +115,8 @@ export const ImprintModal: React.FC<ImprintModalProps> = ({ onClose }) => {
                 <h2>Redaktionell verantwortlich</h2>
                 <p>
                     Kay Engelhardt<br />
-                    Wollankstr 101<br />
-                    13187 Berlin
+                    c/o Tom Spike GmbH<br />Schivelbeiner Str. 10<br />
+                    10439 Berlin
                 </p>
 
                 <h2>EU-Streitbeilegung</h2>
@@ -188,9 +188,9 @@ export const ImprintModal: React.FC<ImprintModalProps> = ({ onClose }) => {
             <p>Note on the responsible body:</p>
             <p>
                 <strong>Kay Engelhardt</strong><br />
-                c/o Nordbahnstudios<br />
-                Wollankstr 101<br />
-                13187 Berlin, Germany<br />
+                <br />
+                c/o Tom Spike GmbH<br />Schivelbeiner Str. 10<br />
+                10439 Berlin, Germany<br />
                 Email: hello@heistology.com
             </p>
 
@@ -223,9 +223,9 @@ export const ImprintModal: React.FC<ImprintModalProps> = ({ onClose }) => {
                 <h2>Information according to § 5 TMG</h2>
                 <p>
                     Kay Engelhardt<br />
-                    c/o Nordbahnstudios<br />
-                    Wollankstr 101<br />
-                    13187 Berlin, Germany
+                    <br />
+                    c/o Tom Spike GmbH<br />Schivelbeiner Str. 10<br />
+                    10439 Berlin, Germany
                 </p>
 
                 <h2>Contact</h2>
@@ -236,8 +236,8 @@ export const ImprintModal: React.FC<ImprintModalProps> = ({ onClose }) => {
                 <h2>Editorial Responsibility</h2>
                 <p>
                     Kay Engelhardt<br />
-                    Wollankstr 101<br />
-                    13187 Berlin, Germany
+                    c/o Tom Spike GmbH<br />Schivelbeiner Str. 10<br />
+                    10439 Berlin, Germany
                 </p>
 
                 <h2>EU Dispute Resolution</h2>
